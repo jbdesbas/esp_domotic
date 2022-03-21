@@ -1,3 +1,4 @@
-ESP8266, ESP32
-Micropython
-MQTT Mosquitto
+- NodeMCU ESP8266, ESP32
+- Micropython https://github.com/micropython/micropython
+- MQTT Mosquitto https://github.com/eclipse/mosquitto
+- Grafana https://github.com/grafana/grafana
