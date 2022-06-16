@@ -1,11 +1,11 @@
 import network
 from machine import RTC, I2C
 from config import *
-from umqttsimple import MQTTClient
+from lib.umqttsimple import MQTTClient
 import ubinascii
 import utime
 import ntptime
-from machine import Pin, reset
+from machine import Pin, unique_id, reset
 
 CONFIG={}
 
@@ -30,7 +30,7 @@ mac = ubinascii.hexlify(network.WLAN().config('mac'),':').decode() #client id ?
 client_id = mac
 print('MAC :', mac)
 
-client = MQTTClient(client_id,MQTT_HOST)  # MQTT_HOST a definir dans le fichier config.py
+client = MQTTClient(client_id,MQTT_HOST)
 
 
 i2c_devices = i2c.scan()
@@ -46,17 +46,17 @@ if(0x3C in i2c_devices):
 if(0x40 in i2c_devices):
     print('Found si7021 device (0x40)')
     CONFIG['SI7021']=True
-    from si7021 import Si7021
+    from lib.si7021 import Si7021
     sensor = Si7021(i2c)
 
 if(0x77 in i2c_devices):
     print('Found bmp180 device (0x77)')
     CONFIG['BMP180']=True
-    from bmp180 import BMP180
+    from lib.bmp180 import BMP180
     bmp180 = BMP180(i2c)
 
 while True :
-    do_connect(WIFI_SSID, WIFI_PASSWORD) # WIFI_SSID et WIFI_PASSWORD a definir dans le fichier config.py
+    do_connect(WIFI_SSID, WIFI_PASSWORD)
 
     try :
         ntptime.settime() # set the rtc datetime from the remote server
@@ -89,5 +89,7 @@ while True :
         display.text('{} %'.format(int(h)),20,15)
         display.text('{}:{}'.format(*rtc.datetime()[4:6]),20,50)
         display.show()
+
+        
 
     utime.sleep(60)
