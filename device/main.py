@@ -55,6 +55,12 @@ if(0x77 in i2c_devices):
     from lib.bmp180 import BMP180
     bmp180 = BMP180(i2c)
 
+if(0x5a in i2c_devices):
+    print('Found CMJCU-811 (0x5a)')
+    CONFIG['CMJCU-811']=True
+    from lib.CCS811 import CCS811
+    ccs811 = CCS811(i2c=i2c, addr=0x5a)
+
 while True :
     do_connect(WIFI_SSID, WIFI_PASSWORD)
 
@@ -82,6 +88,15 @@ while True :
         if CONFIG.get('SI7021') is not True : #publish temp only if no SI7021
             topic = '{}/temperature'.format(mac)
             client.publish(topic, str(t))
+
+    if CONFIG.get('CMJCU-811') is True :
+        #ccs811.put_envdata(humidity=h, temp=t) # s assurer que h et t sont relevé avec le si7021
+        if ccs811.data_ready():
+            co2, voc = ccs811.eCO2, ccs811.tVOC
+            topic = '{}/co2'.format(mac)
+            client.publish(topic, str(co2))
+            topic = '{}/cov'.format(mac)
+            client.publish(topic, str(voc))
     
     if CONFIG.get('OLED') is True :
         display.fill(0)
