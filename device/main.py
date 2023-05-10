@@ -1,3 +1,6 @@
+"""
+V230510
+"""
 import network
 from machine import RTC, I2C
 from config import *
@@ -11,27 +14,25 @@ CONFIG={}
 
 def do_connect(ssid,pwd):
     import network
+    ap = network.WLAN(network.AP_IF) # create access-point interface
+    ap.active(False)  
     sta_if = network.WLAN(network.STA_IF)
     if not sta_if.isconnected():
         print('connecting to network...')
         sta_if.active(True)
         sta_if.connect(ssid, pwd)
         while not sta_if.isconnected():
-            pass
+            utime.sleep(5)
     print('network config:', sta_if.ifconfig())
 
 rtc = RTC()
 i2c = I2C(scl=Pin(I2C_SCL_PIN), sda=Pin(I2C_SDA_PIN))
-
-
-
 
 mac = ubinascii.hexlify(network.WLAN().config('mac'),':').decode() #client id ?
 client_id = mac
 print('MAC :', mac)
 
 client = MQTTClient(client_id,MQTT_HOST)
-
 
 i2c_devices = i2c.scan()
 
@@ -104,7 +105,11 @@ while True :
         display.text('{} %'.format(int(h)),20,15)
         display.text('{}:{}'.format(*rtc.datetime()[4:6]),20,50)
         display.show()
-
-        
+    
 
     utime.sleep(60)
+
+
+# if main loop is exited 
+utime.sleep(60*5)
+reset()
