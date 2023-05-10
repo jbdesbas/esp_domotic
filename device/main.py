@@ -65,7 +65,8 @@ if(0x5a in i2c_devices):
 while True :
     do_connect(WIFI_SSID, WIFI_PASSWORD)
 
-    try :
+    try : #TODO appelé moins souvent (24h ?)
+        ntptime.host="1.europe.pool.ntp.org"
         ntptime.settime() # set the rtc datetime from the remote server
     except OSError as e:
         pass
