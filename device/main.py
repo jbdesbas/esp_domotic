@@ -1,5 +1,5 @@
 """
-V230510
+V240128
 """
 import network
 from machine import RTC, I2C
@@ -8,9 +8,11 @@ from lib.umqttsimple import MQTTClient
 import ubinascii
 import utime
 import ntptime
-from machine import Pin, unique_id, reset
+from machine import Pin, unique_id, reset, WDT
 
 CONFIG={}
+
+RTC_SYNC_EVERY_MS = 60*60*1000 # Sync NTP every hour
 
 def do_connect(ssid,pwd):
     import network
@@ -22,8 +24,13 @@ def do_connect(ssid,pwd):
         sta_if.active(True)
         sta_if.connect(ssid, pwd)
         while not sta_if.isconnected():
-            utime.sleep(5)
+            wdt.feed()
+            utime.sleep_ms(250)
     print('network config:', sta_if.ifconfig())
+
+utime.sleep(10)
+print("/!\ Who let the watchdogs out ?")
+wdt=WDT()
 
 rtc = RTC()
 i2c = I2C(scl=Pin(I2C_SCL_PIN), sda=Pin(I2C_SDA_PIN))
@@ -62,16 +69,29 @@ if(0x5a in i2c_devices):
     from lib.CCS811 import CCS811
     ccs811 = CCS811(i2c=i2c, addr=0x5a)
 
-while True :
-    do_connect(WIFI_SSID, WIFI_PASSWORD)
+time_flag = 0
+time_flag_rtc = 0
 
-    try : #TODO appelé moins souvent (24h ?)
-        ntptime.host="1.europe.pool.ntp.org"
-        ntptime.settime() # set the rtc datetime from the remote server
-    except OSError as e:
-        pass
+while True :
+    wdt.feed()
+    if time_flag != 0 and utime.ticks_diff(utime.ticks_ms(), time_flag ) < 60*1000 :
+        continue
+    
+    time_flag = utime.ticks_ms()
+    do_connect(WIFI_SSID, WIFI_PASSWORD)
+    
+    if time_flag_rtc == 0 or utime.ticks_diff(utime.ticks_ms(), time_flag_rtc ) > RTC_SYNC_EVERY_MS :
+        try : #TODO appelé moins souvent (24h ?)
+            ntptime.host="1.europe.pool.ntp.org"
+            ntptime.settime() # set the rtc datetime from the remote server
+            time_flag_rtc = utime.ticks_ms()
+            print('Sync time with {}'.format(ntptime.host))
+        except OSError as e:
+            pass
+            
     try : 
-        client.connect()
+        client.connect() # MQTT connect
+        wdt.feed()
     except OSError as e:
         reset()
     
@@ -82,6 +102,7 @@ while True :
         client.publish(topic, str(t))
         topic = '{}/humidity'.format(mac)
         client.publish(topic, str(h))
+        wdt.feed()
 
     if CONFIG.get('BMP180') is True :
         p,t = bmp180.pressure, bmp180.temperature 
@@ -90,6 +111,7 @@ while True :
         if CONFIG.get('SI7021') is not True : #publish temp only if no SI7021
             topic = '{}/temperature'.format(mac)
             client.publish(topic, str(t))
+        wdt.feed()
 
     if CONFIG.get('CMJCU-811') is True :
         #ccs811.put_envdata(humidity=h, temp=t) # s assurer que h et t sont relevé avec le si7021
@@ -99,6 +121,7 @@ while True :
             client.publish(topic, str(co2))
             topic = '{}/cov'.format(mac)
             client.publish(topic, str(voc))
+        wdt.feed()
     
     if CONFIG.get('OLED') is True :
         display.fill(0)
@@ -106,11 +129,9 @@ while True :
         display.text('{} %'.format(int(h)),20,15)
         display.text('{}:{}'.format(*rtc.datetime()[4:6]),20,50)
         display.show()
+        wdt.feed()
     
+    wdt.feed()
+    utime.sleep_ms(250)
 
-    utime.sleep(60)
 
-
-# if main loop is exited 
-utime.sleep(60*5)
-reset()
