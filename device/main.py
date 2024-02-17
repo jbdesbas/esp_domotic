@@ -8,6 +8,7 @@ from lib.umqttsimple import MQTTClient
 import ubinascii
 import utime
 import ntptime
+import json
 from machine import Pin, unique_id, reset, WDT
 
 CONFIG={}
@@ -47,7 +48,18 @@ mac = ubinascii.hexlify(network.WLAN().config('mac'),':').decode() #client id ?
 client_id = mac
 print('MAC :', mac)
 
+
+def mqtt_sub_callback(topic, msg):
+    print((topic, msg))
+    if config.ENABLE_NIGHT_LIGHT and topic.decode() == config.NIGHT_LIGHT_TOPIC:
+        try:
+            print(json.loads(msg.decode()))
+        except ValueError:
+            print('json error parse')
+
+
 client = MQTTClient(client_id,config.MQTT_HOST, user = config.MQTT_USER, password = config.MQTT_PASSWORD)
+client.set_callback(mqtt_sub_callback)
 
 i2c_devices = i2c.scan() # TODO config autoscan
 
@@ -77,11 +89,21 @@ if(0x5a in i2c_devices):
     from lib.CCS811 import CCS811
     ccs811 = CCS811(i2c=i2c, addr=0x5a)
 
+do_connect(config.WIFI_SSID, config.WIFI_PASSWORD)
+client.connect()
+
+if config.ENABLE_NIGHT_LIGHT :
+    client.subscribe(config.NIGHT_LIGHT_TOPIC)
+
 time_flag = 0
 time_flag_rtc = 0
 
 while True :
     safe_wdt_feed()
+
+    if config.ENABLE_NIGHT_LIGHT :
+        client.check_msg()
+
     if time_flag != 0 and utime.ticks_diff(utime.ticks_ms(), time_flag ) < 60*1000 :
         continue
     
@@ -99,6 +121,9 @@ while True :
             
     try : 
         client.connect() # MQTT connect
+        if config.ENABLE_NIGHT_LIGHT :
+            client.subscribe(config.NIGHT_LIGHT_TOPIC)
+            client.check_msg()
         safe_wdt_feed()
     except OSError as e:
         reset()

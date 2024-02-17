@@ -17,3 +17,6 @@ AUTOSCAN_I2C = True # TODO Not implemented
 
 RTC_SYNC_EVERY_MS = 60*60*1000 # Sync NTP every hour
 NTP_HOST = "1.europe.pool.ntp.org"
+
+ENABLE_NIGHT_LIGHT = True
+NIGHT_LIGHT_TOPIC = "veilleuse"
