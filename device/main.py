@@ -1,9 +1,9 @@
 """
-V240128
+V240217
 """
 import network
 from machine import RTC, I2C
-from config import *
+import config
 from lib.umqttsimple import MQTTClient
 import ubinascii
 import utime
@@ -24,24 +24,32 @@ def do_connect(ssid,pwd):
         sta_if.active(True)
         sta_if.connect(ssid, pwd)
         while not sta_if.isconnected():
-            wdt.feed()
+            safe_wdt_feed()
             utime.sleep_ms(250)
     print('network config:', sta_if.ifconfig())
 
-utime.sleep(10)
-print("/!\ Who let the watchdogs out ?")
-wdt=WDT()
+if config.ENABLE_WDT :
+    utime.sleep(config.TIME_SLEEP_BEFORE_WDT)
+    print("/!\ Who let the watchdogs out ?")
+    wdt=WDT()
+else :
+    print("/!\ WDT is disable. Please enable after debug")
+
+
+def safe_wdt_feed():
+    if config.ENABLE_WDT : 
+        wdt.feed()
 
 rtc = RTC()
-i2c = I2C(scl=Pin(I2C_SCL_PIN), sda=Pin(I2C_SDA_PIN))
+i2c = I2C(scl=Pin(config.I2C_SCL_PIN), sda=Pin(config.I2C_SDA_PIN))
 
 mac = ubinascii.hexlify(network.WLAN().config('mac'),':').decode() #client id ?
 client_id = mac
 print('MAC :', mac)
 
-client = MQTTClient(client_id,MQTT_HOST)
+client = MQTTClient(client_id,config.MQTT_HOST, user = config.MQTT_USER, password = config.MQTT_PASSWORD)
 
-i2c_devices = i2c.scan()
+i2c_devices = i2c.scan() # TODO config autoscan
 
 print('i2c scan :', [hex(x) for x in i2c_devices])
 
@@ -73,16 +81,16 @@ time_flag = 0
 time_flag_rtc = 0
 
 while True :
-    wdt.feed()
+    safe_wdt_feed()
     if time_flag != 0 and utime.ticks_diff(utime.ticks_ms(), time_flag ) < 60*1000 :
         continue
     
     time_flag = utime.ticks_ms()
-    do_connect(WIFI_SSID, WIFI_PASSWORD)
+    do_connect(config.WIFI_SSID, config.WIFI_PASSWORD)
     
-    if time_flag_rtc == 0 or utime.ticks_diff(utime.ticks_ms(), time_flag_rtc ) > RTC_SYNC_EVERY_MS :
-        try : #TODO appelé moins souvent (24h ?)
-            ntptime.host="1.europe.pool.ntp.org"
+    if time_flag_rtc == 0 or utime.ticks_diff(utime.ticks_ms(), time_flag_rtc ) > config.RTC_SYNC_EVERY_MS :
+        try :
+            ntptime.host=config.NTP_HOST
             ntptime.settime() # set the rtc datetime from the remote server
             time_flag_rtc = utime.ticks_ms()
             print('Sync time with {}'.format(ntptime.host))
@@ -91,7 +99,7 @@ while True :
             
     try : 
         client.connect() # MQTT connect
-        wdt.feed()
+        safe_wdt_feed()
     except OSError as e:
         reset()
     
@@ -102,7 +110,7 @@ while True :
         client.publish(topic, str(t))
         topic = '{}/humidity'.format(mac)
         client.publish(topic, str(h))
-        wdt.feed()
+        safe_wdt_feed()
 
     if CONFIG.get('BMP180') is True :
         p,t = bmp180.pressure, bmp180.temperature 
@@ -111,7 +119,7 @@ while True :
         if CONFIG.get('SI7021') is not True : #publish temp only if no SI7021
             topic = '{}/temperature'.format(mac)
             client.publish(topic, str(t))
-        wdt.feed()
+        safe_wdt_feed()
 
     if CONFIG.get('CMJCU-811') is True :
         #ccs811.put_envdata(humidity=h, temp=t) # s assurer que h et t sont relevé avec le si7021
@@ -121,7 +129,7 @@ while True :
             client.publish(topic, str(co2))
             topic = '{}/cov'.format(mac)
             client.publish(topic, str(voc))
-        wdt.feed()
+        safe_wdt_feed()
     
     if CONFIG.get('OLED') is True :
         display.fill(0)
@@ -129,9 +137,9 @@ while True :
         display.text('{} %'.format(int(h)),20,15)
         display.text('{}:{}'.format(*rtc.datetime()[4:6]),20,50)
         display.show()
-        wdt.feed()
+        safe_wdt_feed()
     
-    wdt.feed()
+    safe_wdt_feed()
     utime.sleep_ms(250)
 
 
