@@ -15,7 +15,7 @@ def cettime():
     return(cet)
 
 
-def timeToTuple(t):
+def timeToTuple(t): #?
     """Convert HH:mm to (HH,mm)"""
     return tuple(map(int, t.split(':')))
 
