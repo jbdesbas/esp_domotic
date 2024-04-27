@@ -20,9 +20,9 @@ def timeToTuple(t): #?
     return tuple(map(int, t.split(':')))
 
 
-def getColor(rules):
+def getColor(rules, current_time):
     for rule in rules :
-        current = cettime()
+        current = current_time
         current_hhmm = '{}:{}'.format(('0'+str(current[3]))[-2:],('0'+str(current[4]))[-2:])
         begin, end = rule['begin'], rule['end']
         if (begin > end and (current_hhmm >= begin or current_hhmm < end )) or (begin < end and current_hhmm >= begin and current_hhmm < end ):

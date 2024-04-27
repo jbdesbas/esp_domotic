@@ -9,6 +9,7 @@ import ubinascii
 import utime
 import ntptime
 import json
+import urequests as requests
 from machine import Pin, unique_id, reset, WDT
 
 CONFIG={}
@@ -49,20 +50,7 @@ client_id = mac
 print('MAC :', mac)
 
 
-def mqtt_sub_callback(topic, msg):
-    if config.ENABLE_NIGHT_LIGHT and topic.decode() == config.NIGHT_LIGHT_TOPIC:
-        try:
-            rules = json.loads(msg.decode())
-            global night_light_rules
-            night_light_rules = rules["rules"]
-            print(night_light_rules)
-        except ValueError:
-            print('json error parse')
-
-
 client = MQTTClient(client_id,config.MQTT_HOST, user = config.MQTT_USER, password = config.MQTT_PASSWORD)
-client.set_callback(mqtt_sub_callback)
-
 
 i2c_devices = i2c.scan() if config.AUTOSCAN_I2C else []
 
@@ -94,17 +82,13 @@ if(0x5a in i2c_devices):
     ccs811 = CCS811(i2c=i2c, addr=0x5a)
 
 do_connect(config.WIFI_SSID, config.WIFI_PASSWORD)
-client.connect()
+
 
 if config.ENABLE_NIGHT_LIGHT :
     from lib.night_light import cettime, getColor
     import neopixel
-    night_light_rules = []
-    np = neopixel.NeoPixel(Pin(4), 1)
-    client.subscribe(config.NIGHT_LIGHT_TOPIC, qos=1)
-    print("subscribed to ",config.NIGHT_LIGHT_TOPIC)
-    utime.sleep_ms(500)
-    safe_wdt_feed()
+    np = neopixel.NeoPixel(Pin(14), 1)
+
 
 time_flag = 0
 time_flag_rtc = 0
@@ -128,16 +112,16 @@ while True :
             pass
             
     if config.ENABLE_NIGHT_LIGHT :
-        client.check_msg()
-        color = getColor(night_light_rules)
+        res = requests.get(config.NIGHT_LIGHT_RULES_URL)
+        current_time = cettime()
+        color = getColor(res.json().get('rules'), current_time)
+        print(current_time, color)
         np[0] = (color['r'], color['g'], color['b']) if color else (0,0,0)
         np.write()
         safe_wdt_feed()
 
     try :
         client.connect() # MQTT connect
-        if config.ENABLE_NIGHT_LIGHT :
-            client.subscribe(config.NIGHT_LIGHT_TOPIC, qos=1)
         safe_wdt_feed()
     except OSError as e:
         reset()
