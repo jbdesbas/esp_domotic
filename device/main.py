@@ -8,8 +8,6 @@ from lib.umqttsimple import MQTTClient
 import ubinascii
 import utime
 import ntptime
-import json
-import urequests as requests
 from machine import Pin, unique_id, reset, WDT
 
 CONFIG={}
@@ -80,11 +78,20 @@ if(0x5a in i2c_devices):
     CONFIG['CMJCU-811']=True
     from lib.CCS811 import CCS811
     ccs811 = CCS811(i2c=i2c, addr=0x5a)
+    
+if(0x62 in i2c_devices):
+    print('Found SCD4x (0x62)')
+    CONFIG['SCD4X']=True
+    from lib.scd4x import SCD4X
+    scd4x = SCD4X(i2c)
+    scd4x.start_low_periodic_measurement()
 
 do_connect(config.WIFI_SSID, config.WIFI_PASSWORD)
 
 
 if config.ENABLE_NIGHT_LIGHT :
+    import urequests as requests
+    import json
     from lib.night_light import cettime, getColor
     import neopixel
     np = neopixel.NeoPixel(Pin(14), 1)
@@ -154,7 +161,20 @@ while True :
             topic = '{}/cov'.format(mac)
             client.publish(topic, str(voc))
         safe_wdt_feed()
-    
+
+    if CONFIG.get('SCD4X') is True :
+        if scd4x.data_ready:
+            co2 = scd4x.CO2
+            topic = '{}/co2'.format(mac)
+            client.publish(topic, str(co2))
+            if CONFIG.get('SI7021') is not True : #publish temp only if no SI7021
+                t, h = scd4x.temperature, scd4x.relative_humidity
+                topic = '{}/temperature'.format(mac)
+                client.publish(topic, str(t))
+                topic = '{}/humidity'.format(mac)
+                client.publish(topic, str(h))
+        safe_wdt_feed()
+
     if CONFIG.get('OLED') is True :
         display.fill(0)
         display.text('{}°C'.format(round(t,1)),20,0)

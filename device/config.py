@@ -18,5 +18,5 @@ AUTOSCAN_I2C = True
 RTC_SYNC_EVERY_MS = 60*60*1000 # Sync NTP every hour
 NTP_HOST = "1.europe.pool.ntp.org"
 
-ENABLE_NIGHT_LIGHT = True
+ENABLE_NIGHT_LIGHT = False
 NIGHT_LIGHT_RULES_URL = "http://nightlight.desbas.fr/rules.json"
