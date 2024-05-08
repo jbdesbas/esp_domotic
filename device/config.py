@@ -13,7 +13,10 @@ I2C_SDA_PIN = 4
 TIME_SLEEP_BEFORE_WDT = 10
 ENABLE_WDT = True # Disable for debug only
 
-AUTOSCAN_I2C = True # TODO Not implemented
+AUTOSCAN_I2C = True
 
 RTC_SYNC_EVERY_MS = 60*60*1000 # Sync NTP every hour
 NTP_HOST = "1.europe.pool.ntp.org"
+
+ENABLE_NIGHT_LIGHT = True
+NIGHT_LIGHT_RULES_URL = "http://nightlight.desbas.fr/rules.json"
